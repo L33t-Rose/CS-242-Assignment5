@@ -6,92 +6,97 @@ import java.io.*;
 
 public class Client {
 	public static class Calculator {
-		
 		public static double calculate(String formula) {
-			System.out.println("We Got A FORMULA " + formula);
-			Queue<Double> rem = new LinkedList<Double>();
-			Queue<Character> ops = new LinkedList<>();
-			Stack<Double> numbers = new Stack<>();
-			Stack<Character> operations = new Stack<>();
+			// Queues for computing the full result after we go through all the characters
+			// in our formula
+			Queue<Double> numberQueue = new LinkedList<Double>();
+			Queue<Character> operatorQueue = new LinkedList<>();
+
+			// Stacks for handling all numbers and results for multiplication and division.
+			Stack<Double> numberStack = new Stack<>();
+			// Stores our operations. + - / *
+			// If we get a + or - we put them into operatorQueue
+			Stack<Character> operationStack = new Stack<>();
 
 			String currentNumber = "";
 			for (int i = 1; i < formula.length() - 1; i++) {
 				char currentCharacter = formula.charAt(i);
-				// System.out.print(currentCharacter);
 				boolean isOperation = currentCharacter == '-' || currentCharacter == '+' || currentCharacter == '*'
 						|| currentCharacter == '/' || currentCharacter == '=';
 				if (currentCharacter == '=') {
-					rem.add(numbers.pop());
+					numberQueue.add(numberStack.pop());
 				}
 				// Is it a number?
 				if (!isOperation) {
 					// If so, then we can add it currentNumber
 					currentNumber += currentCharacter;
+					// Look ahead in the string to see if we have an operator.
+					// If so parse currentNumber and add it to the number stack
 					if ("+-/*=".indexOf(formula.charAt(i + 1)) != -1) {
-						numbers.add(Double.parseDouble(currentNumber));
+						numberStack.add(Double.parseDouble(currentNumber));
 						currentNumber = "";
 					}
 				} else {
-					operations.add(currentCharacter);
+					operationStack.add(currentCharacter);
 				}
-				if (numbers.size() == 2) {
-					double b = numbers.pop();
-					double a = numbers.pop();
-					char sign = operations.pop();
+
+				// Once we have 2 numbers in our number stack we need to determine precedence
+				// If we have a * or / then we do calculation here and put that result back on that stack
+				// Otherwise we send the number at the bottom of the stack to the queue
+				if (numberStack.size() == 2) {
+					double b = numberStack.pop();
+					double a = numberStack.pop();
+					char sign = operationStack.pop();
 					if (sign == '/') {
-						numbers.add(a / b);
+						numberStack.add(a / b);
 					} else if (sign == '*') {
-						numbers.add(a * b);
+						numberStack.add(a * b);
 					} else if (sign == '-' || sign == '+') {
-						rem.add(a);
-						ops.add(sign);
-						numbers.add(b);
+						// Ex: Stack [8,5] -> [5]
+						// Take out 8, put into our queue with the sign and put 5 back into the stack
+						numberQueue.add(a);
+						operatorQueue.add(sign);
+						numberStack.add(b);
 					}
-
 				}
-
 			}
-			System.out.println(rem.size());
-			// double result = 0;
-			// String operations = sanetizedFormula.replaceAll("\\d","");
-			// while(!rem.isEmpty()){
-			// System.out.println(rem.poll());
-			// }
-			double res = rem.poll();
-			while (!ops.isEmpty()) {
-				char sign = ops.poll();
+			// After all of this, we now have a formula with just addition and subtraction
+			// Now we can go from left to right.
+			double res = numberQueue.poll();
+			while (!operatorQueue.isEmpty()) {
+				char sign = operatorQueue.poll();
 				if (sign == '-') {
-					res -= rem.poll();
+					res -= numberQueue.poll();
 				} else {
-					res += rem.poll();
+					res += numberQueue.poll();
 				}
 			}
 
-			System.out.println(res);
-
-			// WRITE CODE HERE
-			return res; // UPDATE RETURN VALUE
+			return res;
 		}
 	}
 
 	public static class Packetizer {
-		// DEFINE ANY MEMBER VARIABLES
-		// WRITE CODE HERE
-		private String packetizerState;
+		// Since our data comes into chunks. we'll keep track of a full packet whenever we beginning
+		// reading
+		private String packetizerMessageState;
+		// Keep track of the last state of the machine
+		private int packetizerMachineState;
 
 		public Packetizer() {
-			// INITIALIZE ANY MEMBER VARIABLES AS NEEDED
-			// WRITE CODE HERE
-			packetizerState = "";
+			packetizerMessageState = "";
+			packetizerMachineState = 0;
 		}
 
 		public String packetize(String message) {
-			String newMessage = packetizerState + message;
-			char[] inputArray = newMessage.toCharArray();
+			if(message.length() == 0){
+				return null;
+			}
+			System.out.println(message.length());
+			char[] inputArray = message.toCharArray();
 			String formula = null;
-			int state = 0;
-			// char[] validNumericDigits = new char[] { '0', '1', '2', '3', '4', '5', '6',
-			// '7', '8', '9' };
+			int state = packetizerMachineState;
+			
 			String validNumericDigits = "0123456789";
 			String validOperations = "+/-*";
 
@@ -99,17 +104,17 @@ public class Client {
 				switch (state) {
 					case 0:// Beginning State
 						if (input == '>') {
-							this.packetizerState = ">";
+							this.packetizerMessageState = ">";
 							state = 1;
 						}
 						break;
 					case 1:// Packet Start - Start Receiving Numbers
 						boolean isNumber_state1 = validNumericDigits.indexOf(input) != -1;
 						if (isNumber_state1) {
-							packetizerState += input;
+							packetizerMessageState += input;
 							state = 2;
 						} else {
-							packetizerState = "";
+							packetizerMessageState = "";
 							state = 6;
 						}
 						break;
@@ -117,51 +122,58 @@ public class Client {
 						boolean isNumber_state2 = validNumericDigits.indexOf(input) != -1;
 						boolean isOperation_state2 = validOperations.indexOf(input) != -1;
 						if (isNumber_state2) {
-							packetizerState += input;
+							packetizerMessageState += input;
 						} else if (isOperation_state2) {
-							packetizerState += input;
+							packetizerMessageState += input;
 							state = 3;
 						} else if (input == '=') {
-							packetizerState += input;
+							packetizerMessageState += input;
 							state = 4;
 						} else {
-							packetizerState = "";
+							packetizerMessageState = "";
 							state = 6;
 						}
 						break;
 					case 3:// Operation Received - Start Receiving Numbers
 						boolean isNumber_state3 = validNumericDigits.indexOf(input) != -1;
 						if (isNumber_state3) {
-							packetizerState += input;
+							packetizerMessageState += input;
 							state = 2;
 						} else {
-							packetizerState = "";
+							packetizerMessageState = "";
 							state = 6;
 						}
 						break;
 					case 4:// Equal Recived, Start Receiving End Packet
 						boolean isEndPacket_state4 = input == '<';
 						if (isEndPacket_state4) {
-							packetizerState += input;
+							packetizerMessageState += input;
 							state = 5;
 						} else {
-							packetizerState = "";
+							packetizerMessageState = "";
 							state = 6;
 						}
 						break;
 					case 5:// End packet received, Start Receiving Start Packet For New Formula
 						boolean isStartPacket_state5 = input == '>';
+						// For the fringe case that after where we get a number in a new message. We shouldn't
+						// be setting formula to our messageState.
+						if(packetizerMessageState != ""){
+							formula = packetizerMessageState;
+						}
+						packetizerMessageState = "";
 						if (isStartPacket_state5) {
-							formula = packetizerState;
-							packetizerState = "";
+							packetizerMessageState += '>';
 							state = 1;
+						}else{
+							state = 0;
 						}
 						break;
 					case 6:// Error State, Start Trying To Receive Start Packet or
-						packetizerState = "";
+						packetizerMessageState = "";
 						boolean isStartPacket_state6 = input == '>';
 						if (isStartPacket_state6) {
-							packetizerState += '>';
+							packetizerMessageState += '>';
 							state = 1;
 						} else {
 							state = 0;
@@ -172,11 +184,11 @@ public class Client {
 				}
 			}
 			if (state == 5) {
-				formula = packetizerState;
-				packetizerState = "";
+				formula = packetizerMessageState;
+				packetizerMessageState = "";
 			}
-			// WRITE CODE HERE
-			return formula; // UPDATE RETURN VALUE
+			packetizerMachineState = state;
+			return formula;
 		}
 	}
 
