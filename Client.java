@@ -92,7 +92,6 @@ public class Client {
 			if(message.length() == 0){
 				return null;
 			}
-			System.out.println(message.length());
 			char[] inputArray = message.toCharArray();
 			String formula = null;
 			int state = packetizerMachineState;
